@@ -1,0 +1,105 @@
+﻿@page "/category"
+@layout AdminLayout
+
+<div class="banner_section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card p-5 m-2">
+                    <div class="card-header text-center fs-3">Manage Categories</div>
+                    <div class="card-title">
+                        <button class="btn btn-outline-success btn-lg mt-2 float-end" @onclick="AddCategory">Add Category</button>
+                    </div>
+                    <div class="card-body" style="height:500px; overflow:auto;">
+                        @if (Categories.Any())
+                        {
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr class="bg-light mb-5">
+                                        <th>Id</th>
+                                        <th>Name</th>
+                                        <th class="text-danger">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var category in Categories)
+                                    {
+                                        <tr>
+                                            <td>@category.Id</td>
+                                            <td>@category.Name</td>
+                                            <td><i class="fa fa-trash text-danger buy_bt" @onclick="() => DeleteCategoryAsync(category.Id)"></i></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info fw-bold text-center">No Category found.</div>
+                        }
+                    </div>
+                </div>
+            </div>
+            @if (ShowDialog)
+            {
+                <NetcodeHubModal BootstrapClass="modalDialog border-success">
+                    <ContentTemplate>
+                        <div class="card">
+                            <div class="card-header">Add Category</div>
+                            <div class="card-body">
+                                <EditForm Model="Category" OnValidSubmit="SaveCategoryAsync">
+                                    <div class="form-group p-2">
+                                        <FloatingText @bind-Value="Category.Name" Label="Category Name" class="form-control" />
+                                        <button class="btn btn-primary mt-3" type="submit">Save Category</button>
+                                        <button class="btn btn-danger mt-3" @onclick="Cancel">Cancel</button>
+                                    </div>
+                                </EditForm>
+                            </div>
+                        </div>
+                    </ContentTemplate>
+                </NetcodeHubModal>
+            }
+        </div>
+    </div>
+</div>
+
+<NetcodeHubToast @ref="ToastComponent"
+                 Position="@ToastPosition.Bottom()"
+                 IconClass="bi bi-check"
+                 Persist="true"
+                 Duration="4000" />
+
+@code {
+    bool ShowDialog = false;
+    NetcodeHubToast? ToastComponent;
+    IEnumerable<GetCategory> Categories = [];
+    CreateCategory Category = new();
+    protected override async Task OnInitializedAsync() => await GetCategoriesAsync();
+    private async Task GetCategoriesAsync() => Categories = await categoryService.GetAllAsync();
+    private void AddCategory() => ShowDialog = true;
+    private void Cancel() => ShowDialog = false;
+
+    private async Task DeleteCategoryAsync(Guid id)
+    {
+        var result = await categoryService.DeleteAsync(id);
+        if (result.Success)
+            await GetCategoriesAsync();
+        await ShowToast(result, "Delete-Category");
+    }
+
+    private async Task SaveCategoryAsync()
+    {
+        var result = await categoryService.CreateAsync(Category);
+        if (result.Success)
+            await GetCategoriesAsync();
+        await ShowToast(result, "Create-Category");
+    }
+
+    private async Task ShowToast(ServiceResponse result, string title)
+    {
+        if (result.Success)
+            await ToastComponent!.ShowSuccessToast(result.Message, title);
+        else
+            await ToastComponent!.ShowErrorToast(result.Message, title);
+    }
+}

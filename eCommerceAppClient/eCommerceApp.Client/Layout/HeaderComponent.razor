@@ -1,0 +1,113 @@
+﻿<div class="header_section mt-5">
+    <div class="container">
+        <div class="containt_main">
+            <div id="mySidenav" class="sidenav">
+                <a href="javascript:void(0)" class="closebtn" onclick="closeNav()" style="color:#cca120;">&times;</a>
+                <div class="fw-bold text-center text-warning" style="font:Tahoma; font-size:20px;">CATEGORIES</div>
+                <hr style="height:5px; background:linear-gradient(to bottom, #cca120, gray)" />
+                <CategoryComponent />
+                <hr style="height:5px; position:relative; top:60%; background:linear-gradient(to bottom, #cca120, gray)" class="text-light" />
+                <div class="fw-bold text-center text-warning" style="font:Tahoma; font-size:16px; position:relative; top:60%;">Version 1.0</div>
+            </div>
+            <span class="toggle_icon" onclick="openNav()"><img src="images/toggle-icon.png"></span>
+            <div class="main">
+                <!-- Another variation with a button -->
+                <div class="input-group bg-light text-dark">
+                    <BlazoredTypeahead Placeholder="Search Products..." SearchMethod="SearchProducts" @bind-Value="SelectedProduct">
+                        <SelectedTemplate>
+                            @context.Name
+                        </SelectedTemplate>
+                        <ResultTemplate>
+                            @context.Name
+                        </ResultTemplate>
+                        <NotFoundTemplate>
+                            <span>No Products Found</span>
+                        </NotFoundTemplate>
+                    </BlazoredTypeahead>
+                </div>
+            </div>
+            <div class="header_box">
+                <div class="login_menu">
+                    <ul>
+                        <li>
+                            <a href="my-cart">
+                                <i class="fa fa-shopping-cart" aria-hidden="true"></i>
+                                <span class="padding_10">Cart</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="login_menu ml-3">
+                    <a href="#" title="Account" class="nav-link" data-toggle="dropdown" aria-expanded="true">
+                        <i class="fa fa-user text-light" aria-hidden="true"></i> <span class="text-light">
+                            <AuthorizeView>
+                                <Authorized>@context.User.Claims.FirstOrDefault(_ => _.Type == ClaimTypes.Email)!.Value!</Authorized>
+                                <NotAuthorized>Account</NotAuthorized>
+                            </AuthorizeView>
+                        </span>
+                    </a>
+                    <div class="dropdown-menu">
+                        <AuthorizeView>
+                            <Authorized>
+                                <div href="#" class="dropdown-item">
+                                    <div class="hstack gap-1">
+                                        <i class="fa fa-tasks"></i>
+                                        <a href="authentication/logout">Logout</a>
+                                    </div>
+                                </div>
+                            </Authorized>
+                            <NotAuthorized>
+                                <div href="#" class="dropdown-item">
+                                    <div class="hstack gap-1">
+                                        <i class="fa fa-tasks"></i>
+                                        <a href="authentication/login">Login</a>
+                                    </div>
+                                </div>
+                                <div href="#" class="dropdown-item">
+                                    <div class="hstack gap-1">
+                                        <i class="fa fa-tasks"></i>
+                                        <a href="authentication/register">Register</a>
+                                    </div>
+                                </div>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    IEnumerable<GetProduct> Products = [];
+    private GetProduct selectedProduct = new();
+    public GetProduct SelectedProduct
+    {
+        get => selectedProduct;
+        set
+        {
+            if (selectedProduct != value)
+            {
+                selectedProduct = value;
+                OnSelectedProductChanged(); // Call the function when the value changes
+            }
+        }
+    }
+
+    private void OnSelectedProductChanged()
+    {
+        if (selectedProduct == null) return;
+        NavManager.NavigateTo($"search-result/{selectedProduct.Name}");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Products = await productService.GetAllAsync();
+    }
+
+    private async Task<IEnumerable<GetProduct>> SearchProducts(string searchText)
+    {
+        return await Task.FromResult(Products.Where(p => p.Name!.Contains(searchText, StringComparison.CurrentCultureIgnoreCase) ||
+        p.Description!.Contains(searchText, StringComparison.CurrentCultureIgnoreCase)).ToList());
+    }
+}

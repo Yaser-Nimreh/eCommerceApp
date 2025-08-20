@@ -1,0 +1,173 @@
+﻿@page "/product"
+@layout AdminLayout
+
+<div class="banner_section">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card p-5 m-2">
+                    <div class="card-header text-center fs-3">Manage Products</div>
+                    <div class="card-title">
+                        <button class="btn btn-outline-success btn-lg mt-2 float-end" @onclick="AddProduct">Add Product</button>
+                    </div>
+                    <div class="card-body" style="height:500px; overflow:auto;">
+                        @if (Products.Any())
+                        {
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr class="bg-light mb-5">
+                                        <th>Id</th>
+                                        <th>Image</th>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Price</th>
+                                        <th>Quantity</th>
+                                        <th>Created Date</th>
+                                        <th class="text-danger">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var product in Products)
+                                    {
+                                        <tr>
+                                            <td>@product.Id</td>
+                                            <td><img src="@product.Image" width="50" height="50" /></td>
+                                            <td>@product.Name</td>
+                                            <td>@product.Description</td>
+                                            <td>@product.Price</td>
+                                            <td>@product.Quantity</td>
+                                            <td>@product.CreatedDate</td>
+                                            <td><i class="fa fa-trash text-danger buy_bt" @onclick="() => DeleteProductAsync(product.Id)"></i></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info fw-bold text-center">No Product found.</div>
+                        }
+                    </div>
+                </div>
+            </div>
+            @if (ShowDialog)
+            {
+                <NetcodeHubModal BootstrapClass="modalDialog border-success">
+                    <ContentTemplate>
+                        <div class="card">
+                            <div class="card-header">Add Product</div>
+                            <div class="card-body">
+                                <EditForm Model="Product" OnValidSubmit="SaveProductAsync">
+                                    <div class="hstack gap-2">
+                                        <div class="form-group">
+                                            <FloatingText @bind-Value="Product.Name" Label="Product Name" class="form-control" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Product Price</label>
+                                            <InputNumber @bind-Value="Product.Price" class="form-control" />
+                                        </div>
+                                        <div class="form-group">
+                                            <FloatingNumber @bind-Value="Product.Quantity" Label="Product Quantity" class="form-control" />
+                                        </div>
+                                        <div class="form-group">
+                                            <FloatingTextArea @bind-Value="Product.Description" Label="Product Description" class="form-control" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="category" class="form-label">Category</label>
+                                            <InputSelect id="category" class="form-control" @bind-Value="Product.CategoryId">
+                                                <option value="">-- Select a Category --</option>
+                                                @foreach (var category in Categories)
+                                                {
+                                                    <option value="@category.Id">@category.Name</option>
+                                                }
+                                            </InputSelect>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Image</label>
+                                            <NetcodeHubFileUpload @ref="FileUploadComponent"
+                                                                  Notify="RetrieveBase64String"
+                                                                  Multiple="false"
+                                                                  RequiredExtensions="RequiredExtensions"
+                                                                  ShowDisplay="true" />
+                                        </div>
+                                        <div class="form-group">
+                                            <button class="btn btn-primary mt-3" type="submit">Save Product</button>
+                                            <button class="btn btn-danger mt-3" @onclick="Cancel">Cancel</button>
+                                        </div>
+                                    </div>
+                                </EditForm>
+                            </div>
+                        </div>
+                    </ContentTemplate>
+                </NetcodeHubModal>
+            }
+        </div>
+    </div>
+</div>
+
+<NetcodeHubToast @ref="ToastComponent"
+Position="@ToastPosition.Bottom()"
+IconClass="bi bi-check"
+Persist="true"
+Duration="4000" />
+
+@code {
+    NetcodeHubToast? ToastComponent;
+    List<string> RequiredExtensions = [".jpg", ".png", ".jpeg"];
+    NetcodeHubFileUpload? FileUploadComponent;
+    bool ShowDialog = false;
+    IEnumerable<GetProduct> Products = [];
+    IEnumerable<GetCategory> Categories = [];
+    CreateProduct Product = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Categories = await categoryService.GetAllAsync();
+        await GetProductsAsync();
+    }
+
+    private async Task GetProductsAsync() => Products = await productService.GetAllAsync();
+    private void AddProduct() => ShowDialog = true;
+    private void Cancel() => ShowDialog = false;
+
+    private async Task DeleteProductAsync(Guid id)
+    {
+        var result = await productService.DeleteAsync(id);
+        if (result.Success)
+            await GetProductsAsync();
+        await ShowToast(result, "Delete-Product");
+    }
+
+    private async Task SaveProductAsync()
+    {
+        var result = await productService.CreateAsync(Product);
+        if (result.Success)
+            await GetProductsAsync();
+        await ShowToast(result, "Create-Product");
+    }
+
+    private async Task ShowToast(ServiceResponse result, string title)
+    {
+        if (result.Success)
+            await ToastComponent!.ShowSuccessToast(result.Message, title);
+        else
+            await ToastComponent!.ShowErrorToast(result.Message, title);
+    }
+
+    private async Task RetrieveBase64String(NetcodeHubUploadModel uploadModel)
+    {
+        if (uploadModel.FileModel is not null)
+        {
+            var files = uploadModel.FileModel!.IBrowserFiles;
+            var baseFiles = uploadModel.FileModel!.BaseFiles;
+            foreach (var item in files!)
+            {
+                var getFile = baseFiles!.FirstOrDefault(_ => _.Key.Equals(item.Name, StringComparison.CurrentCultureIgnoreCase));
+                if (getFile.Key != null)
+                    Product.Image = getFile.Value;
+            }
+            return;
+        }
+        await ShowToast(new ServiceResponse(false, uploadModel.Message!), "Upload Image");
+    }
+}

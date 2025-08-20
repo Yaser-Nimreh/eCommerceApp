@@ -1,0 +1,18 @@
+﻿@page "/"
+
+<HomeBanner />
+<LatestProductComponent />
+
+@code {
+    [CascadingParameter] Task<AuthenticationState>? AuthenticationState { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var user = (await AuthenticationState!).User;
+            if (user.Claims.FirstOrDefault(_ => _.Type == ClaimTypes.Role)!.Value == Constants.Administration.AdminRole)
+                NavManager.NavigateTo("admin");
+        }
+        catch { }
+    }
+}
